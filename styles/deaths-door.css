@@ -1,0 +1,27 @@
+/* Entzieht dem Spielfeld die Farbe und erhöht den Kontrast für einen rauen Look */
+body.deaths-door-active #board {
+    filter: grayscale(100%) brightness(50%) contrast(130%);
+    transition: filter 2s ease-in-out;
+}
+
+/* Erstellt eine drückende, dunkle Vignette über dem gesamten Bildschirm */
+body.deaths-door-active::after {
+    content: "";
+    position: fixed;
+    top: 0; 
+    left: 0; 
+    width: 100vw; 
+    height: 100vh;
+    pointer-events: none; /* Klicks gehen durch den Filter hindurch */
+    background: radial-gradient(circle, transparent 30%, rgba(0, 0, 0, 0.85) 90%);
+    z-index: 100;
+    transition: background 2s ease-in-out;
+}
+
+/* Optional: UI-Elemente leicht abdunkeln, um den Fokus auf die Szene zu lenken */
+body.deaths-door-active #ui-left,
+body.deaths-door-active #ui-right,
+body.deaths-door-active #ui-bottom {
+    opacity: 0.6;
+    transition: opacity 2s ease-in-out;
+}
