@@ -1,39 +1,36 @@
 name: Auto Release Foundry Module
 
-# Der Workflow wird nur ausgelöst, wenn ein Tag gepusht wird, der mit "v" beginnt (z. B. v1.0.0)
 on:
   push:
     tags:
-      - 'v*' 
+      - 'v*'
 
-# Erlaubnis, um das Release im Repository erstellen zu dürfen
 permissions:
   contents: write
 
 jobs:
-  build-and-release:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Repository auschecken
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Zip-Archiv erstellen
+      - name: Vorbereitung und ZIP Erstellung
         run: |
-          # Verpackt die benötigten Dateien in ein Zip-Archiv.
-          # Wenn du später weitere Ordner wie 'assets' oder 'lang' anlegst, 
-          # musst du sie hier in der Liste einfach hinzufügen.
-          zip -r deaths-door.zip module.json scripts styles
+          # Packt die Dateien in die module.zip
+          zip -r module.zip module.json scripts/ styles/
+          
+          # Überprüfung im Log, ob die Datei existiert
+          ls -lh module.zip
 
-      - name: GitHub Release erstellen
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: Release ${{ github.ref_name }}
+          files: |
+            module.json
+            module.zip
+          generate_release_notes: true
           draft: false
           prerelease: false
-          # Lädt die Zip-Datei und die module.json als Assets für Foundry hoch
-          files: |
-            deaths-door.zip
-            module.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
