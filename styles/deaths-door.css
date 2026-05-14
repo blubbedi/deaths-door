@@ -1,3 +1,4 @@
+/* --- 1. DER GRAUFILTER (STERBEND) --- */
 /* Entzieht dem Spielfeld die Farbe und erhöht den Kontrast */
 body.deaths-door-active #board {
     filter: grayscale(100%) brightness(40%) contrast(140%);
@@ -21,28 +22,31 @@ body.deaths-door-active::after {
     animation: heartbeatVignette 1.5s infinite ease-in-out;
 }
 
-/* --- DAS NEUE SCHICKSALS-UI --- */
+
+/* --- 2. DAS SCHICKSALS-UI (BUTTON & TRACKER) --- */
 #deaths-door-ui {
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 200;
-    display: none;
+    display: none; /* Unsichtbar im normalen Spiel */
     text-align: center;
 }
 
+/* Wird nur angezeigt, wenn der Modus aktiv ist */
 body.deaths-door-active #deaths-door-ui {
     display: block;
 }
 
+/* High Fantasy Realismus Button-Design */
 .deaths-door-btn {
     background: linear-gradient(180deg, #2a2a2a, #111);
-    color: #d4af37;
+    color: #d4af37; /* Angelaufenes Gold */
     border: 2px solid #555;
     box-shadow: 0 0 15px rgba(0,0,0,0.9), inset 0 0 10px rgba(0,0,0,0.5);
-    padding: 15px 40px;
-    font-size: 26px;
+    padding: 15px 30px;
+    font-size: 22px; /* Angepasst für längere Texte */
     font-family: "Palatino Linotype", "Book Antiqua", serif;
     text-transform: uppercase;
     letter-spacing: 3px;
@@ -59,17 +63,40 @@ body.deaths-door-active #deaths-door-ui {
     box-shadow: 0 0 30px rgba(150, 0, 0, 0.6);
 }
 
-/* --- DER ENDGÜLTIGE TOD --- */
+/* Tracker für Erfolge & Fehlschläge unter dem Button */
+.dd-tracker-container {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    font-family: "Palatino Linotype", "Book Antiqua", serif;
+    font-size: 22px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 2px 2px 5px rgba(0,0,0,1);
+}
+
+.dd-success {
+    color: #a8cf88; /* Ein mattes, realistisches Grün */
+}
+
+.dd-failure {
+    color: #b53b3b; /* Ein dunkles Blutrot */
+}
+
+
+/* --- 3. DER ENDGÜLTIGE TOD --- */
 body.deaths-door-dead::before {
     content: "";
     position: fixed;
     top: 0; left: 0;
     width: 100vw; height: 100vh;
     background-color: black;
-    z-index: 9999; 
-    pointer-events: none; 
+    z-index: 9999; /* Legt sich über das gesamte Foundry-Feld */
+    pointer-events: none; /* Erlaubt dem Spieler weiterhin, z.B. den Chat zu sehen/bedienen */
     opacity: 0;
-    animation: fadeToBlack 5s forwards ease-in-out;
+    animation: fadeToBlack 5s forwards ease-in-out; /* 5 Sekunden Fade-In */
 }
 
 @keyframes fadeToBlack {
@@ -77,6 +104,7 @@ body.deaths-door-dead::before {
     to { opacity: 1; }
 }
 
+/* Versteckt das UI komplett, wenn der Charakter endgültig tot ist */
 body.deaths-door-dead #deaths-door-ui {
     display: none;
 }
