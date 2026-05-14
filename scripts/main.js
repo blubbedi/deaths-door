@@ -36,7 +36,7 @@ Hooks.on('updateActor', async (actor, changes, options, userId) => {
                 // 3. Audio abspielen (loop = true)
                 if (!heartbeatSound) {
                     heartbeatSound = await AudioHelper.play({
-                        src: "modules/deaths-door/sounds/heartbeat.ogg",
+                        src: "modules/deaths-door/sounds/heartbeat.mp3",
                         volume: 0.6,
                         loop: true
                     }, true); // Das 'true' am Ende ist wichtig, damit es als lokaler Sound gespielt wird
