@@ -2,7 +2,7 @@
   "id": "deaths-door",
   "title": "Die Schwelle des Todes",
   "description": "Fügt eine kinoreife visuelle Transformation hinzu, wenn ein Charakter auf 0 Trefferpunkte fällt.",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "compatibility": {
     "minimum": "11",
     "verified": "12"
