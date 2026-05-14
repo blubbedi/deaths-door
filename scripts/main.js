@@ -1,4 +1,7 @@
-let heartbeatSound = null; 
+// Wir erstellen ein natives HTML5-Audio-Element. Das ist wesentlich robuster für UI-Sounds.
+const heartbeatAudio = new Audio("modules/deaths-door/sounds/heartbeat.mp3");
+heartbeatAudio.loop = true;
+let fadeInterval = null; // Speichert den Fade-Timer
 
 Hooks.once('ready', () => {
     console.log("Death's Door | Modul erfolgreich geladen und wachsam.");
@@ -24,6 +27,7 @@ Hooks.once('ready', () => {
 
 Hooks.on('updateActor', (actor, changes, options, userId) => {
     
+    // Nur reagieren, wenn es der Charakter des aktuellen Spielers ist
     if (game.user.character?.id !== actor.id) return;
 
     const currentHp = actor.system.attributes.hp?.value || 0;
@@ -40,83 +44,57 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
     $('#dd-succ-val').text(deathSuccesses);
     $('#dd-fail-val').text(deathFailures);
 
-    // --- LOGIK FÜR DEN TOD (FADE OUT) ---
+    // --- LOGIK FÜR DEN TOD (LANGSAMES FADE OUT) ---
     if (isDead) {
         document.body.classList.remove('deaths-door-active');
         
         if (!document.body.classList.contains('deaths-door-dead')) {
             document.body.classList.add('deaths-door-dead');
             
-            // Wenn der Sound ein Objekt ist (also fertig geladen) und noch nicht ausfadet
-            if (heartbeatSound && typeof heartbeatSound === 'object' && !heartbeatSound.isFading) {
-                heartbeatSound.isFading = true;
-                let fadeVol = 0.6; 
+            // Wenn der Sound läuft, blenden wir ihn sanft aus
+            if (!heartbeatAudio.paused) {
+                clearInterval(fadeInterval); // Stoppt eventuell laufende andere Fades
                 
-                const fadeInterval = setInterval(() => {
-                    if (heartbeatSound && typeof heartbeatSound.stop === 'function') {
-                        fadeVol -= 0.03; 
-                        heartbeatSound.volume = Math.max(0, fadeVol);
-                        
-                        if (fadeVol <= 0) {
-                            heartbeatSound.stop();
-                            heartbeatSound = null;
-                            clearInterval(fadeInterval);
-                        }
-                    } else {
+                fadeInterval = setInterval(() => {
+                    let newVolume = heartbeatAudio.volume - 0.03;
+                    
+                    if (newVolume <= 0) {
+                        heartbeatAudio.volume = 0;
+                        heartbeatAudio.pause();
+                        heartbeatAudio.currentTime = 0; // Spult den Sound zurück auf Anfang
                         clearInterval(fadeInterval);
+                    } else {
+                        heartbeatAudio.volume = newVolume;
                     }
-                }, 250); 
-            } 
-            // Falls der Sound noch im Ladevorgang war, brich ihn sofort ab
-            else if (heartbeatSound === "loading") {
-                heartbeatSound = "cancelled";
+                }, 250);
             }
         }
     } 
-    // --- LOGIK FÜR DAS STERBEN ---
+    // --- LOGIK FÜR DAS STERBEN (SOUND STARTEN) ---
     else if (isDying) {
         document.body.classList.remove('deaths-door-dead');
 
         if (!document.body.classList.contains('deaths-door-active')) {
             document.body.classList.add('deaths-door-active');
             
-            // Verhindert die Race Condition: Wir markieren den Sound sofort als "loading"
-            if (!heartbeatSound) {
-                heartbeatSound = "loading"; 
-                
-                AudioHelper.play({
-                    src: "modules/deaths-door/sounds/heartbeat.mp3", 
-                    volume: 0.6,
-                    loop: true
-                }, true).then(sound => {
-                    // Wenn in der Zwischenzeit niemand den Sound abgebrochen hat, speichern wir ihn
-                    if (heartbeatSound === "loading") {
-                        heartbeatSound = sound;
-                    } else {
-                        // Wurde der Charakter in den Millisekunden des Ladens schon wieder geheilt/getötet -> Stop!
-                        sound.stop();
-                    }
+            clearInterval(fadeInterval); // Stoppt eventuell laufendes Ausfaden
+            heartbeatAudio.volume = 0.6; // Setzt die Lautstärke auf Standard
+            
+            if (heartbeatAudio.paused) {
+                heartbeatAudio.play().catch(err => {
+                    console.warn("Death's Door | Browser hat Autoplay blockiert.", err);
                 });
-            } else if (typeof heartbeatSound === 'object') {
-                // Sound läuft bereits, setze Volumen zurück falls er am Faden war
-                heartbeatSound.isFading = false;
-                heartbeatSound.volume = 0.6;
             }
         }
     } 
-    // --- LOGIK FÜR LEBENDIG / STABIL ---
+    // --- LOGIK FÜR LEBENDIG / STABIL (HARTES STOPPEN) ---
     else {
         document.body.classList.remove('deaths-door-active');
         document.body.classList.remove('deaths-door-dead');
         
-        // Stoppt den Sound hart
-        if (heartbeatSound && typeof heartbeatSound === 'object') {
-            heartbeatSound.stop();
-            heartbeatSound = null;
-        } 
-        // Bricht den Ladevorgang ab, falls er gerade passiert
-        else if (heartbeatSound === "loading") {
-            heartbeatSound = "cancelled";
-        }
+        // Sofortiger Stopp bei Heilung oder Stabilisierung
+        clearInterval(fadeInterval);
+        heartbeatAudio.pause();
+        heartbeatAudio.currentTime = 0; // Spult den Sound zurück auf Anfang
     }
 });
