@@ -1,15 +1,21 @@
-/* --- 1. DER GRAUFILTER (STERBEND) --- */
+/* --- 1. DER TUNNELBLICK (STERBEND) --- */
 /* Entzieht dem Spielfeld die Farbe und erhöht den Kontrast */
 body.deaths-door-active #board {
     filter: grayscale(100%) brightness(40%) contrast(140%);
     transition: filter 2s ease-in-out;
 }
 
-/* Pulsierende Vignette (Herzschlag-Effekt) */
-@keyframes heartbeatVignette {
-    0% { background: radial-gradient(circle, transparent 30%, rgba(0, 0, 0, 0.85) 90%); }
-    50% { background: radial-gradient(circle, transparent 30%, rgba(15, 0, 0, 0.95) 85%); }
-    100% { background: radial-gradient(circle, transparent 30%, rgba(0, 0, 0, 0.85) 90%); }
+/* Pulsierender Tunnelblick-Effekt */
+@keyframes tunnelPulse {
+    0% { 
+        background: radial-gradient(circle, transparent 5%, rgba(0, 0, 0, 0.95) 40%); 
+    }
+    50% { 
+        background: radial-gradient(circle, transparent 2%, rgba(0, 0, 0, 0.98) 35%); 
+    }
+    100% { 
+        background: radial-gradient(circle, transparent 5%, rgba(0, 0, 0, 0.95) 40%); 
+    }
 }
 
 body.deaths-door-active::after {
@@ -19,7 +25,8 @@ body.deaths-door-active::after {
     width: 100vw; height: 100vh;
     pointer-events: none;
     z-index: 100;
-    animation: heartbeatVignette 1.5s infinite ease-in-out;
+    /* Nutzt die Tunnel-Pulse Animation */
+    animation: tunnelPulse 2s infinite ease-in-out;
 }
 
 
@@ -46,7 +53,7 @@ body.deaths-door-active #deaths-door-ui {
     border: 2px solid #555;
     box-shadow: 0 0 15px rgba(0,0,0,0.9), inset 0 0 10px rgba(0,0,0,0.5);
     padding: 15px 30px;
-    font-size: 22px; /* Angepasst für längere Texte */
+    font-size: 22px; 
     font-family: "Palatino Linotype", "Book Antiqua", serif;
     text-transform: uppercase;
     letter-spacing: 3px;
@@ -94,7 +101,7 @@ body.deaths-door-dead::before {
     width: 100vw; height: 100vh;
     background-color: black;
     z-index: 9999; /* Legt sich über das gesamte Foundry-Feld */
-    pointer-events: none; /* Erlaubt dem Spieler weiterhin, z.B. den Chat zu sehen/bedienen */
+    pointer-events: none; 
     opacity: 0;
     animation: fadeToBlack 5s forwards ease-in-out; /* 5 Sekunden Fade-In */
 }
