@@ -1,7 +1,10 @@
-// Natives HTML5-Audio für maximale Zuverlässigkeit beim Stoppen/Faden
+// Natives HTML5-Audio
 const heartbeatAudio = new Audio("modules/deaths-door/sounds/heartbeat.mp3");
 heartbeatAudio.loop = true;
 let fadeInterval = null; 
+
+// Unser Kurzzeitgedächtnis: Merkt sich, welche Spieler stabilisiert sind
+const stabilizedActors = new Set();
 
 Hooks.once('ready', () => {
     console.log("Death's Door | Modul geladen. Überwache Lebenszeichen...");
@@ -27,24 +30,33 @@ Hooks.once('ready', () => {
 
 Hooks.on('updateActor', (actor, changes, options, userId) => {
     
-    // Nur für den eigenen Charakter des Spielers
     if (game.user.character?.id !== actor.id) return;
 
-    // Aktuelle Werte abgreifen
     const currentHp = actor.system.attributes.hp?.value || 0;
     const deathSuccesses = actor.system.attributes.death?.success || 0;
     const deathFailures = actor.system.attributes.death?.failure || 0;
     const isDeadStatus = actor.statuses.has("dead");
 
-    // ZUSTANDS-LOGIK
-    // 1. Tot: 3 Fails oder manueller Status "tot"
-    const isDead = deathFailures >= 3 || isDeadStatus;
-    
-    // 2. Sterbend: 0 HP UND noch nicht 3 Erfolge UND noch nicht tot
-    const isDying = currentHp <= 0 && deathSuccesses < 3 && !isDead;
+    // --- NEU: DAS STABILISIERUNGS-GEDÄCHTNIS ---
+    // 1. Hat er gerade 3 Erfolge erreicht? Merken!
+    if (deathSuccesses >= 3) {
+        stabilizedActors.add(actor.id);
+    }
+    // 2. Wurde er geheilt? Aus dem Gedächtnis löschen!
+    if (currentHp > 0) {
+        stabilizedActors.delete(actor.id);
+    }
+    // 3. Hat er neuen Schaden kassiert (Fehlschläge steigen)? Aus dem Gedächtnis löschen!
+    if (hasProperty(changes, "system.attributes.death.failure") && changes.system.attributes.death.failure > 0) {
+        stabilizedActors.delete(actor.id);
+    }
 
-    // 3. Stabilisiert/Geheilt: (HP > 0) ODER (0 HP aber 3 Erfolge erreicht)
-    const isStableOrHealed = currentHp > 0 || (currentHp <= 0 && deathSuccesses >= 3);
+    // --- ZUSTANDS-LOGIK ---
+    const isDead = deathFailures >= 3 || isDeadStatus;
+    const isStable = stabilizedActors.has(actor.id);
+    
+    // Sterbend ist man jetzt nur noch, wenn man weder tot noch in unserem "stabil"-Gedächtnis ist
+    const isDying = currentHp <= 0 && !isDead && !isStable;
 
     // --- UI AKTUALISIERUNG ---
     const nextRollNumber = deathSuccesses + deathFailures + 1;
@@ -52,14 +64,13 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
     $('#dd-succ-val').text(deathSuccesses);
     $('#dd-fail-val').text(deathFailures);
 
-    // --- FALL 1: CHARAKTER STIRBT (Fade-Out) ---
+    // --- EFFEKT-STEUERUNG ---
     if (isDead) {
         document.body.classList.remove('deaths-door-active');
         
         if (!document.body.classList.contains('deaths-door-dead')) {
             document.body.classList.add('deaths-door-dead');
             
-            // Sound langsam ausfaden
             if (!heartbeatAudio.paused) {
                 clearInterval(fadeInterval);
                 fadeInterval = setInterval(() => {
@@ -76,7 +87,6 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
             }
         }
     } 
-    // --- FALL 2: CHARAKTER IST STERBEND (Effekt an) ---
     else if (isDying) {
         document.body.classList.remove('deaths-door-dead');
 
@@ -91,12 +101,11 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
             }
         }
     } 
-    // --- FALL 3: CHARAKTER STABIL ODER GEHEILT (Effekt sofort aus) ---
-    else if (isStableOrHealed) {
+    else {
+        // Hier landet das Skript jetzt auch sicher, wenn man stabilisiert ist
         document.body.classList.remove('deaths-door-active');
         document.body.classList.remove('deaths-door-dead');
         
-        // Sound sofort stoppen
         clearInterval(fadeInterval);
         heartbeatAudio.pause();
         heartbeatAudio.currentTime = 0;
