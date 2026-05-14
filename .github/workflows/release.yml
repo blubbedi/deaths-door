@@ -17,8 +17,8 @@ jobs:
 
       - name: Vorbereitung und ZIP Erstellung
         run: |
-          # Packt die Dateien in die module.zip
-          zip -r module.zip module.json scripts/ styles/
+          # Packt alle benötigten Dateien in die module.zip, inklusive dem neuen sounds-Ordner
+          zip -r module.zip module.json scripts/ styles/ sounds/
           
           # Überprüfung im Log, ob die Datei existiert
           ls -lh module.zip

@@ -1,29 +1,58 @@
-// Dieser Hook wird ausgelöst, sobald Foundry vollständig geladen ist
+let heartbeatSound = null; // Speichert den laufenden Sound, um ihn später stoppen zu können
+
 Hooks.once('ready', () => {
-    console.log("Death's Door | Modul erfolgreich geladen.");
+    console.log("Death's Door | Modul erfolgreich geladen und wachsam.");
+
+    // 1. Wir injizieren das Schicksals-UI direkt in den HTML-Body von Foundry
+    const uiHtml = `
+        <div id="deaths-door-ui">
+            <button class="deaths-door-btn" id="roll-death-save-btn">Stelle dich dem Schicksal</button>
+        </div>
+    `;
+    $('body').append(uiHtml);
+
+    // 2. Wir geben dem Button seine Funktion
+    $('#roll-death-save-btn').on('click', async () => {
+        const actor = game.user.character;
+        if (actor) {
+            // Löst das native dnd5e Makro für den Todesrettungswurf aus
+            await actor.rollDeathSave(); 
+        }
+    });
 });
 
-// Dieser Hook überwacht jede Änderung an einem Akteur (Schaden, Heilung, etc.)
-Hooks.on('updateActor', (actor, changes, options, userId) => {
+Hooks.on('updateActor', async (actor, changes, options, userId) => {
     
-    // WICHTIG: Das Skript darf nur für den Spieler ausgeführt werden, dem der Charakter gehört.
-    // So stellen wir sicher, dass nicht alle Bildschirme grau werden, wenn ein Goblin stirbt.
     if (game.user.character?.id !== actor.id) return;
 
-    // Wir prüfen, ob die Änderungen die Lebenspunkte (HP) betreffen
-    if (changes.system?.attributes?.hp !== undefined) {
+    if (hasProperty(changes, "system.attributes.hp")) {
+        const currentHp = getProperty(changes, "system.attributes.hp.value") ?? actor.system.attributes.hp.value;
         
-        // Hole den neuen HP-Wert
-        const currentHp = changes.system.attributes.hp.value ?? actor.system.attributes.hp.value;
-        
-        // Logik: 0 HP oder weniger löst den Effekt aus
         if (currentHp <= 0) {
-            document.body.classList.add('deaths-door-active');
-            console.log("Death's Door | Der Charakter hat die Schwelle überschritten.");
-        } else {
-            // Wird der Charakter geheilt, entfernen wir den Effekt
-            document.body.classList.remove('deaths-door-active');
-            console.log("Death's Door | Der Charakter ist ins Leben zurückgekehrt.");
+            // Verhindert, dass der Effekt mehrfach ausgelöst wird, wenn man bereits auf 0 HP ist
+            if (!document.body.classList.contains('deaths-door-active')) {
+                document.body.classList.add('deaths-door-active');
+                
+                // 3. Audio abspielen (loop = true)
+                if (!heartbeatSound) {
+                    heartbeatSound = await AudioHelper.play({
+                        src: "modules/deaths-door/sounds/heartbeat.ogg",
+                        volume: 0.6,
+                        loop: true
+                    }, true); // Das 'true' am Ende ist wichtig, damit es als lokaler Sound gespielt wird
+                }
+            }
+        } 
+        else {
+            if (document.body.classList.contains('deaths-door-active')) {
+                document.body.classList.remove('deaths-door-active');
+                
+                // 4. Audio stoppen, wenn der Spieler geheilt wird
+                if (heartbeatSound) {
+                    heartbeatSound.stop();
+                    heartbeatSound = null;
+                }
+            }
         }
     }
 });
