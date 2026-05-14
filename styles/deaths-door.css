@@ -7,15 +7,9 @@ body.deaths-door-active #board {
 
 /* Pulsierender Tunnelblick-Effekt */
 @keyframes tunnelPulse {
-    0% { 
-        background: radial-gradient(circle, transparent 5%, rgba(0, 0, 0, 0.95) 40%); 
-    }
-    50% { 
-        background: radial-gradient(circle, transparent 2%, rgba(0, 0, 0, 0.98) 35%); 
-    }
-    100% { 
-        background: radial-gradient(circle, transparent 5%, rgba(0, 0, 0, 0.95) 40%); 
-    }
+    0% { background: radial-gradient(circle, transparent 5%, rgba(0, 0, 0, 0.95) 40%); }
+    50% { background: radial-gradient(circle, transparent 2%, rgba(0, 0, 0, 0.98) 35%); }
+    100% { background: radial-gradient(circle, transparent 5%, rgba(0, 0, 0, 0.95) 40%); }
 }
 
 body.deaths-door-active::after {
@@ -25,7 +19,6 @@ body.deaths-door-active::after {
     width: 100vw; height: 100vh;
     pointer-events: none;
     z-index: 100;
-    /* Nutzt die Tunnel-Pulse Animation */
     animation: tunnelPulse 2s infinite ease-in-out;
 }
 
@@ -37,19 +30,17 @@ body.deaths-door-active::after {
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 200;
-    display: none; /* Unsichtbar im normalen Spiel */
+    display: none; 
     text-align: center;
 }
 
-/* Wird nur angezeigt, wenn der Modus aktiv ist */
 body.deaths-door-active #deaths-door-ui {
     display: block;
 }
 
-/* High Fantasy Realismus Button-Design */
 .deaths-door-btn {
     background: linear-gradient(180deg, #2a2a2a, #111);
-    color: #d4af37; /* Angelaufenes Gold */
+    color: #d4af37; 
     border: 2px solid #555;
     box-shadow: 0 0 15px rgba(0,0,0,0.9), inset 0 0 10px rgba(0,0,0,0.5);
     padding: 15px 30px;
@@ -70,7 +61,6 @@ body.deaths-door-active #deaths-door-ui {
     box-shadow: 0 0 30px rgba(150, 0, 0, 0.6);
 }
 
-/* Tracker für Erfolge & Fehlschläge unter dem Button */
 .dd-tracker-container {
     margin-top: 20px;
     display: flex;
@@ -84,13 +74,8 @@ body.deaths-door-active #deaths-door-ui {
     text-shadow: 2px 2px 5px rgba(0,0,0,1);
 }
 
-.dd-success {
-    color: #a8cf88; /* Ein mattes, realistisches Grün */
-}
-
-.dd-failure {
-    color: #b53b3b; /* Ein dunkles Blutrot */
-}
+.dd-success { color: #a8cf88; }
+.dd-failure { color: #b53b3b; }
 
 
 /* --- 3. DER ENDGÜLTIGE TOD --- */
@@ -100,10 +85,10 @@ body.deaths-door-dead::before {
     top: 0; left: 0;
     width: 100vw; height: 100vh;
     background-color: black;
-    z-index: 9999; /* Legt sich über das gesamte Foundry-Feld */
+    z-index: 9999; 
     pointer-events: none; 
     opacity: 0;
-    animation: fadeToBlack 5s forwards ease-in-out; /* 5 Sekunden Fade-In */
+    animation: fadeToBlack 5s forwards ease-in-out; 
 }
 
 @keyframes fadeToBlack {
@@ -111,7 +96,7 @@ body.deaths-door-dead::before {
     to { opacity: 1; }
 }
 
-/* Versteckt das UI komplett, wenn der Charakter endgültig tot ist */
+/* Versteckt das UI zwingend, wenn der Charakter endgültig tot ist */
 body.deaths-door-dead #deaths-door-ui {
-    display: none;
+    display: none !important;
 }
