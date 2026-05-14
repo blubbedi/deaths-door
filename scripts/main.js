@@ -3,7 +3,6 @@ let heartbeatSound = null;
 Hooks.once('ready', () => {
     console.log("Death's Door | Modul erfolgreich geladen und wachsam.");
 
-    // Das erweiterte HTML mit Platzhaltern für die dynamischen Zahlen
     const uiHtml = `
         <div id="deaths-door-ui">
             <button class="deaths-door-btn" id="roll-death-save-btn">Mach deinen 1. Todesrettungswurf!</button>
@@ -23,7 +22,7 @@ Hooks.once('ready', () => {
     });
 });
 
-Hooks.on('updateActor', async (actor, changes, options, userId) => {
+Hooks.on('updateActor', (actor, changes, options, userId) => {
     
     if (game.user.character?.id !== actor.id) return;
 
@@ -36,27 +35,25 @@ Hooks.on('updateActor', async (actor, changes, options, userId) => {
     const isDying = currentHp <= 0 && deathSuccesses < 3 && !isDead;
 
     // --- DYNAMISCHES UI UPDATE ---
-    // Wir berechnen den wievielten Wurf der Spieler machen muss
     const nextRollNumber = deathSuccesses + deathFailures + 1;
-    
-    // Wir updaten die Texte im HTML
     $('#roll-death-save-btn').text(`Mach deinen ${nextRollNumber}. Todesrettungswurf!`);
     $('#dd-succ-val').text(deathSuccesses);
     $('#dd-fail-val').text(deathFailures);
-    // -----------------------------
 
+    // --- LOGIK FÜR DEN TOD (FADE OUT) ---
     if (isDead) {
         document.body.classList.remove('deaths-door-active');
         
         if (!document.body.classList.contains('deaths-door-dead')) {
             document.body.classList.add('deaths-door-dead');
             
-            if (heartbeatSound && !heartbeatSound.isFading) {
+            // Wenn der Sound ein Objekt ist (also fertig geladen) und noch nicht ausfadet
+            if (heartbeatSound && typeof heartbeatSound === 'object' && !heartbeatSound.isFading) {
                 heartbeatSound.isFading = true;
                 let fadeVol = 0.6; 
                 
                 const fadeInterval = setInterval(() => {
-                    if (heartbeatSound) {
+                    if (heartbeatSound && typeof heartbeatSound.stop === 'function') {
                         fadeVol -= 0.03; 
                         heartbeatSound.volume = Math.max(0, fadeVol);
                         
@@ -69,34 +66,57 @@ Hooks.on('updateActor', async (actor, changes, options, userId) => {
                         clearInterval(fadeInterval);
                     }
                 }, 250); 
+            } 
+            // Falls der Sound noch im Ladevorgang war, brich ihn sofort ab
+            else if (heartbeatSound === "loading") {
+                heartbeatSound = "cancelled";
             }
         }
     } 
+    // --- LOGIK FÜR DAS STERBEN ---
     else if (isDying) {
         document.body.classList.remove('deaths-door-dead');
 
         if (!document.body.classList.contains('deaths-door-active')) {
             document.body.classList.add('deaths-door-active');
             
+            // Verhindert die Race Condition: Wir markieren den Sound sofort als "loading"
             if (!heartbeatSound) {
-                heartbeatSound = await AudioHelper.play({
+                heartbeatSound = "loading"; 
+                
+                AudioHelper.play({
                     src: "modules/deaths-door/sounds/heartbeat.mp3", 
                     volume: 0.6,
                     loop: true
-                }, true); 
-            } else {
+                }, true).then(sound => {
+                    // Wenn in der Zwischenzeit niemand den Sound abgebrochen hat, speichern wir ihn
+                    if (heartbeatSound === "loading") {
+                        heartbeatSound = sound;
+                    } else {
+                        // Wurde der Charakter in den Millisekunden des Ladens schon wieder geheilt/getötet -> Stop!
+                        sound.stop();
+                    }
+                });
+            } else if (typeof heartbeatSound === 'object') {
+                // Sound läuft bereits, setze Volumen zurück falls er am Faden war
                 heartbeatSound.isFading = false;
                 heartbeatSound.volume = 0.6;
             }
         }
     } 
+    // --- LOGIK FÜR LEBENDIG / STABIL ---
     else {
         document.body.classList.remove('deaths-door-active');
         document.body.classList.remove('deaths-door-dead');
         
-        if (heartbeatSound) {
+        // Stoppt den Sound hart
+        if (heartbeatSound && typeof heartbeatSound === 'object') {
             heartbeatSound.stop();
             heartbeatSound = null;
+        } 
+        // Bricht den Ladevorgang ab, falls er gerade passiert
+        else if (heartbeatSound === "loading") {
+            heartbeatSound = "cancelled";
         }
     }
 });
