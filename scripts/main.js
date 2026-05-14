@@ -1,13 +1,20 @@
+// Natives HTML5-Audio für maximale Zuverlässigkeit
 const heartbeatAudio = new Audio("modules/deaths-door/sounds/heartbeat.mp3");
 heartbeatAudio.loop = true;
-let fadeInterval = null; 
 
+// Der neue Sound für die Stabilisierung / Heilung
+const stabilizeAudio = new Audio("modules/deaths-door/sounds/stabilize.mp3");
+
+let fadeInterval = null; 
 const actorStates = new Map();
 
 Hooks.once('ready', () => {
-    console.log("Death's Door | Modul geladen. Tunnelblick & Dynamischer Puls aktiv.");
+    console.log("Death's Door | Modul geladen. Tunnelblick & Flash aktiv.");
 
+    // Flash-Overlay und UI-Container injizieren
     const uiHtml = `
+        <div id="deaths-door-flash-overlay"></div>
+        
         <div id="deaths-door-ui">
             <button class="deaths-door-btn" id="roll-death-save-btn">Mach deinen 1. Todesrettungswurf!</button>
             <div class="dd-tracker-container">
@@ -77,13 +84,9 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
 
     // --- EFFEKT-STEUERUNG ---
     if (isDead) {
-        // WICHTIG: Wir entfernen 'deaths-door-active' hier NICHT mehr.
-        // Dadurch bleibt der Tunnelblick bestehen, während der schwarze Fade-Out sich darüberlegt.
-        
         if (!document.body.classList.contains('deaths-door-dead')) {
             document.body.classList.add('deaths-door-dead');
             
-            // Sound langsam ausfaden
             if (!heartbeatAudio.paused) {
                 clearInterval(fadeInterval);
                 fadeInterval = setInterval(() => {
@@ -115,7 +118,25 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
         }
     } 
     else {
-        // Spieler ist am Leben oder stabilisiert: Alles sicher wegräumen
+        // --- DER WEISSE BLITZ & SOUND (STABIL / GEHEILT) ---
+        if (document.body.classList.contains('deaths-door-active')) {
+            const flashOverlay = document.getElementById('deaths-door-flash-overlay');
+            if (flashOverlay) {
+                flashOverlay.classList.remove('flash-active');
+                void flashOverlay.offsetWidth; 
+                flashOverlay.classList.add('flash-active');
+                
+                // Sound abspielen
+                stabilizeAudio.volume = 0.7; // Passe die Lautstärke bei Bedarf an (0.0 bis 1.0)
+                stabilizeAudio.currentTime = 0;
+                stabilizeAudio.play().catch(err => console.warn("Autoplay blockiert", err));
+
+                setTimeout(() => {
+                    flashOverlay.classList.remove('flash-active');
+                }, 1500);
+            }
+        }
+
         document.body.classList.remove('deaths-door-active');
         document.body.classList.remove('deaths-door-dead');
         
