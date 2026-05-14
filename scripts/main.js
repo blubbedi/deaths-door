@@ -13,7 +13,7 @@ Hooks.once('ready', () => {
 
     // Flash-Overlay und UI-Container injizieren
     const uiHtml = `
-        <div id="deaths-door-flash-overlay"></div>
+        <div id="deaths-door-flash-overlay" style="z-index: 999999;"></div>
         
         <div id="deaths-door-ui">
             <button class="deaths-door-btn" id="roll-death-save-btn">Mach deinen 1. Todesrettungswurf!</button>
@@ -42,7 +42,8 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
     const deathFailures = actor.system.attributes.death?.failure || 0;
     const isDeadStatus = actor.statuses.has("dead");
 
-    const prevState = actorStates.get(actor.id) || { hp: currentHp, success: 0, failure: 0, stabilized: false };
+    // Wir laden den vorherigen Zustand aus dem Gedächtnis, inkl. "dying" (war er gerade noch sterbend?)
+    const prevState = actorStates.get(actor.id) || { hp: currentHp, success: 0, failure: 0, stabilized: false, dying: false };
     let isStabilized = prevState.stabilized;
 
     // --- STABILISIERUNGS-LOGIK ---
@@ -61,16 +62,23 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
         isStabilized = true;
     }
 
+    // --- ZUSTANDS-ERMITTLUNG ---
+    const isDead = deathFailures >= 3 || isDeadStatus;
+    const isDying = currentHp <= 0 && !isDead && !isStabilized;
+
+    // --- DIE NEUE FLASH-ABFRAGE ---
+    // War er beim letzten Check noch am Sterben, ist aber JETZT weder sterbend noch tot? (Also gerettet/geheilt!)
+    const wasDying = prevState.dying;
+    const justRecovered = wasDying && !isDying && !isDead;
+
+    // Speichere den aktuellen Zustand fürs nächste Mal ab
     actorStates.set(actor.id, {
         hp: currentHp,
         success: deathSuccesses,
         failure: deathFailures,
-        stabilized: isStabilized
+        stabilized: isStabilized,
+        dying: isDying
     });
-
-    // --- ZUSTANDS-ERMITTLUNG ---
-    const isDead = deathFailures >= 3 || isDeadStatus;
-    const isDying = currentHp <= 0 && !isDead && !isStabilized;
 
     // --- UI AKTUALISIERUNG ---
     const nextRollNumber = deathSuccesses + deathFailures + 1;
@@ -119,18 +127,24 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
     } 
     else {
         // --- DER WEISSE BLITZ & SOUND (STABIL / GEHEILT) ---
-        if (document.body.classList.contains('deaths-door-active')) {
+        // Die neue Abfrage löst 100% zielsicher aus
+        if (justRecovered) {
             const flashOverlay = document.getElementById('deaths-door-flash-overlay');
             if (flashOverlay) {
                 flashOverlay.classList.remove('flash-active');
-                void flashOverlay.offsetWidth; 
+                void flashOverlay.offsetWidth; // Erzwingt Neuladen der Animation
                 flashOverlay.classList.add('flash-active');
                 
-                // Sound abspielen
-                stabilizeAudio.volume = 0.7; // Passe die Lautstärke bei Bedarf an (0.0 bis 1.0)
-                stabilizeAudio.currentTime = 0;
-                stabilizeAudio.play().catch(err => console.warn("Autoplay blockiert", err));
+                // Sound abspielen (mit try-catch, falls die Datei noch fehlt)
+                try {
+                    stabilizeAudio.volume = 0.7; 
+                    stabilizeAudio.currentTime = 0;
+                    stabilizeAudio.play().catch(() => {});
+                } catch(e) {
+                    console.warn("Death's Door | Stabilize Sound nicht gefunden.");
+                }
 
+                // Aufräumen der CSS-Klasse
                 setTimeout(() => {
                     flashOverlay.classList.remove('flash-active');
                 }, 1500);
