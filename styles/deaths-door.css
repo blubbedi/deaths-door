@@ -39,7 +39,7 @@ body.deaths-door-active.fail-1::after { animation: tunnelPulse1 3.5s infinite ea
 body.deaths-door-active.fail-2::after { animation: tunnelPulse2 5s infinite ease-in-out; }
 
 
-/* --- 2. DAS SCHICKSALS-UI (BUTTON & TRACKER) --- */
+/* --- 2. DAS SCHICKSALS-UI (BUTTON, TEXT & TRACKER) --- */
 #deaths-door-ui {
     position: fixed;
     top: 50%;
@@ -52,6 +52,25 @@ body.deaths-door-active.fail-2::after { animation: tunnelPulse2 5s infinite ease
 
 body.deaths-door-active #deaths-door-ui {
     display: block;
+}
+
+/* Der mahnende Text, wenn man nicht am Zug ist */
+#dd-wait-text {
+    color: #888;
+    font-size: 24px;
+    font-family: "Palatino Linotype", "Book Antiqua", serif;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    text-shadow: 2px 2px 5px black;
+    display: none; /* Standardmäßig versteckt, wird von JS gesteuert */
+    margin-bottom: 20px;
+    animation: pulseWaitText 2.5s infinite ease-in-out;
+}
+
+@keyframes pulseWaitText {
+    0% { opacity: 0.5; text-shadow: 0 0 5px rgba(0,0,0,1); }
+    50% { opacity: 1; text-shadow: 0 0 15px rgba(150,30,30,0.6); color: #a55; }
+    100% { opacity: 0.5; text-shadow: 0 0 5px rgba(0,0,0,1); }
 }
 
 /* Basis-Button (0 Fehlschläge) */
@@ -82,7 +101,7 @@ body.deaths-door-active #deaths-door-ui {
 body.deaths-door-active.fail-1 .deaths-door-btn {
     border-color: #7a2a2a;
     box-shadow: 0 0 20px rgba(120, 30, 30, 0.6), inset 0 0 10px rgba(0,0,0,0.6);
-    color: #e09f3e; /* Das Gold wird etwas unruhiger/rötlicher */
+    color: #e09f3e; 
 }
 
 /* Button-Eskalation Stufe 2 (2 Fehlschläge): Alarmstufe! Pulsierendes Rot */

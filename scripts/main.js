@@ -8,14 +8,33 @@ const stabilizeAudio = new Audio("modules/deaths-door/sounds/stabilize.mp3");
 let fadeInterval = null; 
 const actorStates = new Map();
 
-Hooks.once('ready', () => {
-    console.log("Death's Door | Modul geladen. Eskalierender Tunnelblick & Button aktiv.");
+// --- NEU: Zug-Überprüfung für den Button ---
+function updateTurnUI() {
+    const actor = game.user.character;
+    if (!actor) return;
 
-    // Flash-Overlay und UI-Container injizieren
+    const combat = game.combat;
+    // Ist kein Kampf aktiv oder ist der Spieler am Zug?
+    const isMyTurn = !combat || !combat.started || (combat.combatant?.actor?.id === actor.id);
+
+    if (isMyTurn) {
+        $('#roll-death-save-btn').show();
+        $('#dd-wait-text').hide();
+    } else {
+        $('#roll-death-save-btn').hide();
+        $('#dd-wait-text').show();
+    }
+}
+
+Hooks.once('ready', () => {
+    console.log("Death's Door | Modul geladen. Initiative-Tracking aktiv.");
+
+    // Flash-Overlay und UI-Container injizieren (mit Warte-Text)
     const uiHtml = `
         <div id="deaths-door-flash-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: white; z-index: 999999; pointer-events: none; opacity: 0;"></div>
         
         <div id="deaths-door-ui">
+            <div id="dd-wait-text">Warte auf deinen Zug...</div>
             <button class="deaths-door-btn" id="roll-death-save-btn">Mach deinen Todesrettungswurf!</button>
             <div class="dd-tracker-container">
                 <div class="dd-success">Geschafft: <span id="dd-succ-val">0</span>/3</div>
@@ -31,6 +50,20 @@ Hooks.once('ready', () => {
             await actor.rollDeathSave(); 
         }
     });
+});
+
+// --- NEU: Wenn der Spielleiter im Kampf auf den nächsten Zug klickt ---
+Hooks.on('updateCombat', () => {
+    if (document.body.classList.contains('deaths-door-active')) {
+        updateTurnUI();
+    }
+});
+
+// --- NEU: Wenn der Kampf unerwartet beendet wird ---
+Hooks.on('deleteCombat', () => {
+    if (document.body.classList.contains('deaths-door-active')) {
+        updateTurnUI();
+    }
 });
 
 Hooks.on('updateActor', (actor, changes, options, userId) => {
@@ -78,7 +111,7 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
         dying: isDying
     });
 
-    // --- UI AKTUALISIERUNG (Nur noch Counter, kein Button-Text mehr) ---
+    // --- UI AKTUALISIERUNG ---
     $('#dd-succ-val').text(deathSuccesses);
     $('#dd-fail-val').text(deathFailures);
 
@@ -86,12 +119,12 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
     const speed = Math.max(0.6, 1.0 - (deathFailures * 0.2));
     heartbeatAudio.playbackRate = speed;
 
-    // Bereinige alte Fehler-Klassen
     document.body.classList.remove('fail-0', 'fail-1', 'fail-2');
 
-    // Setze die aktuelle Fehler-Klasse für die CSS-Animation (beeinflusst Tunnelblick & Button)
     if (isDying) {
         document.body.classList.add(`fail-${Math.min(2, deathFailures)}`);
+        // Aktualisiere den Button, wenn der Charakter den Status "Sterbend" betritt oder updatet
+        updateTurnUI();
     }
 
     // --- EFFEKT-STEUERUNG ---
