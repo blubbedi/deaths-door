@@ -11,9 +11,9 @@ const actorStates = new Map();
 Hooks.once('ready', () => {
     console.log("Death's Door | Modul geladen. Tunnelblick & Flash aktiv.");
 
-    // Flash-Overlay und UI-Container injizieren
+    // Flash-Overlay (mit integriertem Style, immun gegen CSS-Caching) und UI-Container injizieren
     const uiHtml = `
-        <div id="deaths-door-flash-overlay" style="z-index: 999999;"></div>
+        <div id="deaths-door-flash-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: white; z-index: 999999; pointer-events: none; opacity: 0;"></div>
         
         <div id="deaths-door-ui">
             <button class="deaths-door-btn" id="roll-death-save-btn">Mach deinen 1. Todesrettungswurf!</button>
@@ -42,7 +42,6 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
     const deathFailures = actor.system.attributes.death?.failure || 0;
     const isDeadStatus = actor.statuses.has("dead");
 
-    // Wir laden den vorherigen Zustand aus dem Gedächtnis, inkl. "dying" (war er gerade noch sterbend?)
     const prevState = actorStates.get(actor.id) || { hp: currentHp, success: 0, failure: 0, stabilized: false, dying: false };
     let isStabilized = prevState.stabilized;
 
@@ -67,11 +66,10 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
     const isDying = currentHp <= 0 && !isDead && !isStabilized;
 
     // --- DIE NEUE FLASH-ABFRAGE ---
-    // War er beim letzten Check noch am Sterben, ist aber JETZT weder sterbend noch tot? (Also gerettet/geheilt!)
     const wasDying = prevState.dying;
     const justRecovered = wasDying && !isDying && !isDead;
 
-    // Speichere den aktuellen Zustand fürs nächste Mal ab
+    // Zustand fürs nächste Mal ab
     actorStates.set(actor.id, {
         hp: currentHp,
         success: deathSuccesses,
@@ -127,15 +125,20 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
     } 
     else {
         // --- DER WEISSE BLITZ & SOUND (STABIL / GEHEILT) ---
-        // Die neue Abfrage löst 100% zielsicher aus
         if (justRecovered) {
             const flashOverlay = document.getElementById('deaths-door-flash-overlay');
             if (flashOverlay) {
-                flashOverlay.classList.remove('flash-active');
-                void flashOverlay.offsetWidth; // Erzwingt Neuladen der Animation
-                flashOverlay.classList.add('flash-active');
+                // Wir nutzen jetzt die direkte JavaScript-Animations-API (Web Animations API)
+                // Diese überschreibt jeden Browser-Cache und zwingt den Screen zum Blitzen.
+                flashOverlay.animate([
+                    { opacity: 1 }, 
+                    { opacity: 0 }
+                ], {
+                    duration: 1500,
+                    easing: 'ease-out'
+                });
                 
-                // Sound abspielen (mit try-catch, falls die Datei noch fehlt)
+                // Sound abspielen
                 try {
                     stabilizeAudio.volume = 0.7; 
                     stabilizeAudio.currentTime = 0;
@@ -143,11 +146,6 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
                 } catch(e) {
                     console.warn("Death's Door | Stabilize Sound nicht gefunden.");
                 }
-
-                // Aufräumen der CSS-Klasse
-                setTimeout(() => {
-                    flashOverlay.classList.remove('flash-active');
-                }, 1500);
             }
         }
 
