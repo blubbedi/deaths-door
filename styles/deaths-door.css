@@ -34,12 +34,13 @@ body.deaths-door-active::after {
     z-index: 100;
 }
 
+/* Zuweisung der eskalierenden Animationen */
 body.deaths-door-active.fail-0::after { animation: tunnelPulse0 2s infinite ease-in-out; }
 body.deaths-door-active.fail-1::after { animation: tunnelPulse1 3.5s infinite ease-in-out; }
 body.deaths-door-active.fail-2::after { animation: tunnelPulse2 5s infinite ease-in-out; }
 
 
-/* --- 2. DAS SCHICKSALS-UI (BUTTON, TEXT & TRACKER) --- */
+/* --- 2. DAS SCHICKSALS-UI --- */
 #deaths-door-ui {
     position: fixed;
     top: 50%;
@@ -50,11 +51,10 @@ body.deaths-door-active.fail-2::after { animation: tunnelPulse2 5s infinite ease
     text-align: center;
 }
 
-body.deaths-door-active #deaths-door-ui {
-    display: block;
+body.deaths-door-active #deaths-door-ui { 
+    display: block; 
 }
 
-/* Der mahnende Text, wenn man nicht am Zug ist */
 #dd-wait-text {
     color: #888;
     font-size: 24px;
@@ -62,7 +62,7 @@ body.deaths-door-active #deaths-door-ui {
     text-transform: uppercase;
     letter-spacing: 4px;
     text-shadow: 2px 2px 5px black;
-    display: none; /* Standardmäßig versteckt, wird von JS gesteuert */
+    display: none; 
     margin-bottom: 20px;
     animation: pulseWaitText 2.5s infinite ease-in-out;
 }
@@ -73,7 +73,6 @@ body.deaths-door-active #deaths-door-ui {
     100% { opacity: 0.5; text-shadow: 0 0 5px rgba(0,0,0,1); }
 }
 
-/* Basis-Button (0 Fehlschläge) */
 .deaths-door-btn {
     background: linear-gradient(180deg, #2a2a2a, #111);
     color: #d4af37; 
@@ -97,14 +96,12 @@ body.deaths-door-active #deaths-door-ui {
     box-shadow: 0 0 30px rgba(150, 0, 0, 0.6);
 }
 
-/* Button-Eskalation Stufe 1 (1 Fehlschlag): Leichter Blutschimmer */
 body.deaths-door-active.fail-1 .deaths-door-btn {
     border-color: #7a2a2a;
     box-shadow: 0 0 20px rgba(120, 30, 30, 0.6), inset 0 0 10px rgba(0,0,0,0.6);
     color: #e09f3e; 
 }
 
-/* Button-Eskalation Stufe 2 (2 Fehlschläge): Alarmstufe! Pulsierendes Rot */
 @keyframes btnPanicPulse {
     0% { box-shadow: 0 0 20px rgba(180, 20, 20, 0.8), inset 0 0 10px rgba(50,0,0,0.8); border-color: #b53b3b; }
     50% { box-shadow: 0 0 40px rgba(255, 0, 0, 1), inset 0 0 20px rgba(150,0,0,0.9); border-color: #ff3333; color: #ffcccc; background: linear-gradient(180deg, #4a0000, #1a0000); }
@@ -147,11 +144,31 @@ body.deaths-door-dead::before {
     animation: fadeToBlack 5s forwards ease-in-out; 
 }
 
-@keyframes fadeToBlack {
-    from { opacity: 0; }
-    to { opacity: 1; }
+@keyframes fadeToBlack { 
+    from { opacity: 0; } 
+    to { opacity: 1; } 
 }
 
-body.deaths-door-dead #deaths-door-ui {
-    display: none !important;
+body.deaths-door-dead #deaths-door-ui { 
+    display: none !important; 
+}
+
+
+/* --- 4. ANIMATIONEN FÜR SCHOCK (TREFFER) --- */
+@keyframes screenShake {
+    0% { transform: translate(1px, 1px) rotate(0deg); }
+    10% { transform: translate(-1px, -2px) rotate(-1deg); }
+    20% { transform: translate(-3px, 0px) rotate(1deg); }
+    30% { transform: translate(3px, 2px) rotate(0deg); }
+    40% { transform: translate(1px, -1px) rotate(1deg); }
+    50% { transform: translate(-1px, 2px) rotate(-1deg); }
+    60% { transform: translate(-3px, 1px) rotate(0deg); }
+    70% { transform: translate(3px, 1px) rotate(-1deg); }
+    80% { transform: translate(-1px, -1px) rotate(1deg); }
+    90% { transform: translate(1px, 2px) rotate(0deg); }
+    100% { transform: translate(1px, -2px) rotate(-1deg); }
+}
+
+body.dd-shaking {
+    animation: screenShake 0.4s;
 }
