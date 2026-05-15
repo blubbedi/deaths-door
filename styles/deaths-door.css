@@ -1,15 +1,28 @@
 /* --- 1. DER TUNNELBLICK (STERBEND) --- */
-/* Entzieht dem Spielfeld die Farbe und erhöht den Kontrast */
 body.deaths-door-active #board {
     filter: grayscale(100%) brightness(40%) contrast(140%);
     transition: filter 2s ease-in-out;
 }
 
-/* Pulsierender Tunnelblick-Effekt */
-@keyframes tunnelPulse {
-    0% { background: radial-gradient(circle, transparent 5%, rgba(0, 0, 0, 0.95) 40%); }
-    50% { background: radial-gradient(circle, transparent 2%, rgba(0, 0, 0, 0.98) 35%); }
-    100% { background: radial-gradient(circle, transparent 5%, rgba(0, 0, 0, 0.95) 40%); }
+/* STUFE 0: Kämpferisch (Schnell, Schwarz) */
+@keyframes tunnelPulse0 {
+    0% { background: radial-gradient(circle, transparent 5%, rgba(0, 0, 0, 0.95) 45%); }
+    50% { background: radial-gradient(circle, transparent 2%, rgba(0, 0, 0, 0.98) 40%); }
+    100% { background: radial-gradient(circle, transparent 5%, rgba(0, 0, 0, 0.95) 45%); }
+}
+
+/* STUFE 1: Schwächer werdend (Langsamer, weichere Ränder, leichter Rotschimmer) */
+@keyframes tunnelPulse1 {
+    0% { background: radial-gradient(circle, transparent 4%, rgba(15, 0, 0, 0.97) 50%); }
+    50% { background: radial-gradient(circle, transparent 1%, rgba(20, 0, 0, 0.99) 45%); }
+    100% { background: radial-gradient(circle, transparent 4%, rgba(15, 0, 0, 0.97) 50%); }
+}
+
+/* STUFE 2: Todesnähe (Sehr langsam, extrem weiche Übergänge, tiefroter Rand) */
+@keyframes tunnelPulse2 {
+    0% { background: radial-gradient(circle, transparent 3%, rgba(25, 0, 0, 0.98) 55%); }
+    50% { background: radial-gradient(circle, transparent 0%, rgba(40, 0, 0, 1.0) 48%); }
+    100% { background: radial-gradient(circle, transparent 3%, rgba(25, 0, 0, 0.98) 55%); }
 }
 
 body.deaths-door-active::after {
@@ -19,8 +32,11 @@ body.deaths-door-active::after {
     width: 100vw; height: 100vh;
     pointer-events: none;
     z-index: 100;
-    animation: tunnelPulse 2s infinite ease-in-out;
 }
+
+body.deaths-door-active.fail-0::after { animation: tunnelPulse0 2s infinite ease-in-out; }
+body.deaths-door-active.fail-1::after { animation: tunnelPulse1 3.5s infinite ease-in-out; }
+body.deaths-door-active.fail-2::after { animation: tunnelPulse2 5s infinite ease-in-out; }
 
 
 /* --- 2. DAS SCHICKSALS-UI (BUTTON & TRACKER) --- */
@@ -38,6 +54,7 @@ body.deaths-door-active #deaths-door-ui {
     display: block;
 }
 
+/* Basis-Button (0 Fehlschläge) */
 .deaths-door-btn {
     background: linear-gradient(180deg, #2a2a2a, #111);
     color: #d4af37; 
@@ -59,6 +76,26 @@ body.deaths-door-active #deaths-door-ui {
     border-color: #8a0000;
     color: #fff;
     box-shadow: 0 0 30px rgba(150, 0, 0, 0.6);
+}
+
+/* Button-Eskalation Stufe 1 (1 Fehlschlag): Leichter Blutschimmer */
+body.deaths-door-active.fail-1 .deaths-door-btn {
+    border-color: #7a2a2a;
+    box-shadow: 0 0 20px rgba(120, 30, 30, 0.6), inset 0 0 10px rgba(0,0,0,0.6);
+    color: #e09f3e; /* Das Gold wird etwas unruhiger/rötlicher */
+}
+
+/* Button-Eskalation Stufe 2 (2 Fehlschläge): Alarmstufe! Pulsierendes Rot */
+@keyframes btnPanicPulse {
+    0% { box-shadow: 0 0 20px rgba(180, 20, 20, 0.8), inset 0 0 10px rgba(50,0,0,0.8); border-color: #b53b3b; }
+    50% { box-shadow: 0 0 40px rgba(255, 0, 0, 1), inset 0 0 20px rgba(150,0,0,0.9); border-color: #ff3333; color: #ffcccc; background: linear-gradient(180deg, #4a0000, #1a0000); }
+    100% { box-shadow: 0 0 20px rgba(180, 20, 20, 0.8), inset 0 0 10px rgba(50,0,0,0.8); border-color: #b53b3b; }
+}
+
+body.deaths-door-active.fail-2 .deaths-door-btn {
+    animation: btnPanicPulse 1.2s infinite ease-in-out;
+    background: linear-gradient(180deg, #3a0505, #110000);
+    color: #ff9999;
 }
 
 .dd-tracker-container {
@@ -96,7 +133,6 @@ body.deaths-door-dead::before {
     to { opacity: 1; }
 }
 
-/* Versteckt das UI zwingend, wenn der Charakter endgültig tot ist */
 body.deaths-door-dead #deaths-door-ui {
     display: none !important;
 }

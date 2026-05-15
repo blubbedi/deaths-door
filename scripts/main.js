@@ -9,14 +9,14 @@ let fadeInterval = null;
 const actorStates = new Map();
 
 Hooks.once('ready', () => {
-    console.log("Death's Door | Modul geladen. Tunnelblick & Flash aktiv.");
+    console.log("Death's Door | Modul geladen. Eskalierender Tunnelblick & Button aktiv.");
 
-    // Flash-Overlay (mit integriertem Style, immun gegen CSS-Caching) und UI-Container injizieren
+    // Flash-Overlay und UI-Container injizieren
     const uiHtml = `
         <div id="deaths-door-flash-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: white; z-index: 999999; pointer-events: none; opacity: 0;"></div>
         
         <div id="deaths-door-ui">
-            <button class="deaths-door-btn" id="roll-death-save-btn">Mach deinen 1. Todesrettungswurf!</button>
+            <button class="deaths-door-btn" id="roll-death-save-btn">Mach deinen Todesrettungswurf!</button>
             <div class="dd-tracker-container">
                 <div class="dd-success">Geschafft: <span id="dd-succ-val">0</span>/3</div>
                 <div class="dd-failure">Nicht geschafft: <span id="dd-fail-val">0</span>/3</div>
@@ -65,7 +65,7 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
     const isDead = deathFailures >= 3 || isDeadStatus;
     const isDying = currentHp <= 0 && !isDead && !isStabilized;
 
-    // --- DIE NEUE FLASH-ABFRAGE ---
+    // --- FLASH-ABFRAGE ---
     const wasDying = prevState.dying;
     const justRecovered = wasDying && !isDying && !isDead;
 
@@ -78,15 +78,21 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
         dying: isDying
     });
 
-    // --- UI AKTUALISIERUNG ---
-    const nextRollNumber = deathSuccesses + deathFailures + 1;
-    $('#roll-death-save-btn').text(`Mach deinen ${nextRollNumber}. Todesrettungswurf!`);
+    // --- UI AKTUALISIERUNG (Nur noch Counter, kein Button-Text mehr) ---
     $('#dd-succ-val').text(deathSuccesses);
     $('#dd-fail-val').text(deathFailures);
 
-    // --- SOUND-GESCHWINDIGKEIT ---
+    // --- EFFEKT-ESKALATION (SOUND & BILD) ---
     const speed = Math.max(0.6, 1.0 - (deathFailures * 0.2));
     heartbeatAudio.playbackRate = speed;
+
+    // Bereinige alte Fehler-Klassen
+    document.body.classList.remove('fail-0', 'fail-1', 'fail-2');
+
+    // Setze die aktuelle Fehler-Klasse für die CSS-Animation (beeinflusst Tunnelblick & Button)
+    if (isDying) {
+        document.body.classList.add(`fail-${Math.min(2, deathFailures)}`);
+    }
 
     // --- EFFEKT-STEUERUNG ---
     if (isDead) {
@@ -128,8 +134,6 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
         if (justRecovered) {
             const flashOverlay = document.getElementById('deaths-door-flash-overlay');
             if (flashOverlay) {
-                // Wir nutzen jetzt die direkte JavaScript-Animations-API (Web Animations API)
-                // Diese überschreibt jeden Browser-Cache und zwingt den Screen zum Blitzen.
                 flashOverlay.animate([
                     { opacity: 1 }, 
                     { opacity: 0 }
@@ -138,7 +142,6 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
                     easing: 'ease-out'
                 });
                 
-                // Sound abspielen
                 try {
                     stabilizeAudio.volume = 0.7; 
                     stabilizeAudio.currentTime = 0;
