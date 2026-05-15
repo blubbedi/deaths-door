@@ -21,9 +21,8 @@ function updateTurnUI() {
 }
 
 Hooks.once('ready', () => {
-    console.log("Death's Door | Modul geladen. Alle D&D 5e Nahtod-Regeln erfasst.");
+    console.log("Death's Door | Modul geladen. Automatischer Crit-Sniffer ist AKTIV!");
 
-    // Flash-Overlays für Rettung (Weiß) und Schaden (Rot) injizieren
     const uiHtml = `
         <div id="deaths-door-flash-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: white; z-index: 999999; pointer-events: none; opacity: 0;"></div>
         <div id="deaths-door-blood-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: darkred; z-index: 999999; pointer-events: none; opacity: 0;"></div>
@@ -41,33 +40,28 @@ Hooks.once('ready', () => {
 
     $('#roll-death-save-btn').on('click', async () => {
         const actor = game.user.character;
-        if (actor) {
-            await actor.rollDeathSave(); 
-        }
+        if (actor) await actor.rollDeathSave(); 
     });
 });
 
-// Listener für Kampf-Fortschritt
 Hooks.on('updateCombat', () => { if (document.body.classList.contains('deaths-door-active')) updateTurnUI(); });
 Hooks.on('deleteCombat', () => { if (document.body.classList.contains('deaths-door-active')) updateTurnUI(); });
 
-Hooks.on('updateActor', (actor, changes, options, userId) => {
+Hooks.on('updateActor', async (actor, changes, options, userId) => {
     
-    // Nur reagieren, wenn es der Charakter des jeweiligen Spielers ist
+    // Check, ob das Skript beim betroffenen Charakter ausgeführt wird
     if (game.user.character?.id !== actor.id) return;
 
     const currentHp = actor.system.attributes.hp?.value || 0;
     const deathSuccesses = actor.system.attributes.death?.success || 0;
-    const deathFailures = actor.system.attributes.death?.failure || 0;
+    let deathFailures = actor.system.attributes.death?.failure || 0;
     const isDeadStatus = actor.statuses.has("dead");
 
     const prevState = actorStates.get(actor.id) || { hp: currentHp, success: 0, failure: 0, stabilized: false, dying: false };
     let isStabilized = prevState.stabilized;
 
-    // HP hat sich geändert -> Stabilisierung verfällt, falls man wieder fällt
     if (hasProperty(changes, "system.attributes.hp.value")) isStabilized = false;
 
-    // Erkennung heimlicher System-Resets
     const savesCleared = (prevState.success > 0 || prevState.failure > 0) && (deathSuccesses === 0 && deathFailures === 0);
     if (savesCleared && currentHp <= 0 && !isDeadStatus) isStabilized = true;
     if (deathSuccesses >= 3) isStabilized = true;
@@ -78,8 +72,37 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
     const wasDying = prevState.dying;
     const justRecovered = wasDying && !isDying && !isDead;
     
-    // ERKENNUNG VON TREFFERN & NATÜRLICHER 1 WÄHREND MAN LIEGT
+    // --- DER CRIT-SNIFFER (Der Hack für die Automatisierung) ---
     const tookDamageWhileDown = isDying && (deathFailures > prevState.failure);
+
+    if (tookDamageWhileDown) {
+        // Wir schnappen uns die letzte Chat-Nachricht
+        const lastMsg = game.messages.contents.at(-1);
+        const flavor = lastMsg?.flavor?.toLowerCase() || "";
+        
+        // Prüft, ob es ein Crit war (über Flags oder den Text im Chat)
+        const isCriticalMessage = lastMsg && (
+            lastMsg.flags?.dnd5e?.roll?.isCritical || 
+            flavor.includes("critical") || 
+            flavor.includes("kritisch")
+        );
+
+        // Backup für den GM: Wenn er beim Klick auf Schaden "SHIFT" gedrückt hält, gilt es auch als Crit
+        const isShiftPressed = game.keyboard.isModifierActive("Shift");
+
+        if (isCriticalMessage || isShiftPressed) {
+            console.log("Death's Door | KRITISCHER TREFFER ERKANNT! Füge 2. Fehlschlag hinzu.");
+            
+            // Foundry hat gerade 1 hinzugefügt, wir fügen blitzschnell den zweiten hinzu!
+            if (deathFailures < 3) {
+                deathFailures += 1;
+                // Wir zwingen den Charakterbogen zum Update
+                await actor.update({ "system.attributes.death.failure": deathFailures });
+                // Ab hier übernimmt das Skript beim nächsten Durchlauf automatisch den Tod/die Eskalation
+                return; 
+            }
+        }
+    }
 
     actorStates.set(actor.id, {
         hp: currentHp,
@@ -89,11 +112,9 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
         dying: isDying
     });
 
-    // UI aktualisieren
     $('#dd-succ-val').text(deathSuccesses);
     $('#dd-fail-val').text(deathFailures);
 
-    // Herzschlag-Puls anpassen
     const speed = Math.max(0.6, 1.0 - (deathFailures * 0.2));
     heartbeatAudio.playbackRate = speed;
 
@@ -103,10 +124,9 @@ Hooks.on('updateActor', (actor, changes, options, userId) => {
         document.body.classList.add(`fail-${Math.min(2, deathFailures)}`);
         updateTurnUI();
         
-        // VISUELLES FEEDBACK FÜR TREFFER BEI 0 HP ODER NAT 1
         if (tookDamageWhileDown) {
             document.body.classList.add('dd-shaking');
-            setTimeout(() => document.body.classList.remove('dd-shaking'), 400); // Schütteln beenden
+            setTimeout(() => document.body.classList.remove('dd-shaking'), 400); 
             
             const bloodOverlay = document.getElementById('deaths-door-blood-overlay');
             if (bloodOverlay) {
