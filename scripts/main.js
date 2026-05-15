@@ -9,7 +9,7 @@ function updateTurnUI() {
     const actor = game.user.character;
     if (!actor) return;
     const isMyTurn = !game.combat || !game.combat.started || (game.combat.combatant?.actor?.id === actor.id);
-
+    
     if (isMyTurn) {
         $('#roll-death-save-btn').show();
         $('#dd-wait-text').hide();
@@ -20,7 +20,7 @@ function updateTurnUI() {
 }
 
 Hooks.once('ready', () => {
-    console.log("Death's Door | Aktiv und bereit.");
+    console.log("Death's Door | Deep-Logic-Fix geladen.");
 
     const uiHtml = `
         <div id="deaths-door-flash-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: white; z-index: 999999; pointer-events: none; opacity: 0;"></div>
@@ -42,62 +42,72 @@ Hooks.once('ready', () => {
     });
 });
 
-// DER FIX FÜR RE-DEATH BEI 0 HP
 Hooks.on("updateActor", (actor, changes, options, userId) => {
     if (game.user.character?.id !== actor.id) return;
 
     const currentHp = actor.system.attributes.hp.value;
-    const deathSuccesses = actor.system.attributes.death.success;
-    const deathFailures = actor.system.attributes.death.failure;
-    
-    const prevState = actorStates.get(actor.id) || { hp: currentHp, success: 0, failure: 0, stabilized: false };
-    let isStabilized = prevState.stabilized;
+    const successes = actor.system.attributes.death.success;
+    const failures = actor.system.attributes.death.failure;
+    const isDeadStatus = actor.statuses.has("dead") || failures >= 3;
 
-    // PRÜFUNG: Wurde der Charakter erschüttert?
-    // Auch wenn HP 0 bleibt: Wenn ein HP-Update-Paket reinkommt, endet die Stabilisierung.
-    const hpUpdateSent = hasProperty(changes, "system.attributes.hp.value");
-    const failuresIncreased = deathFailures > prevState.failure;
+    // Lade alten Zustand oder erstelle Standard
+    const prev = actorStates.get(actor.id) || { hp: currentHp, succ: successes, fail: failures, stabilized: false, dying: false };
 
-    if (currentHp === 0 && (hpUpdateSent || failuresIncreased)) {
-        isStabilized = false; 
+    let nowStabilized = prev.stabilized;
+
+    // --- RE-DEATH LOGIK (Erschütterung bei 0 HP) ---
+    const hpChanged = hasProperty(changes, "system.attributes.hp.value");
+    const failChanged = failures > prev.fail;
+
+    if (currentHp === 0 && (hpChanged || failChanged)) {
+        nowStabilized = false; // Schaden bricht Stabilität sofort
     }
 
-    // Wenn HP über 0 steigen, ist die Stabilisierung sowieso vorbei (Wach)
-    if (currentHp > 0) isStabilized = false;
+    // --- STABILISIERUNGS LOGIK ---
+    if (currentHp > 0) {
+        nowStabilized = false;
+    } else {
+        const savesReset = (prev.succ > 0 || prev.fail > 0) && (successes === 0 && failures === 0);
+        const reachedThreeSucc = (successes >= 3 && prev.succ < 3);
+        if (savesReset || reachedThreeSucc) {
+            nowStabilized = true;
+        }
+    }
 
-    // STABILISIERUNG AKTIVIEREN
-    const savesCleared = (prevState.success > 0 || prevState.failure > 0) && (deathSuccesses === 0 && deathFailures === 0);
-    if (savesCleared && currentHp <= 0) isStabilized = true;
-    if (deathSuccesses >= 3 && prevState.success < 3) isStabilized = true;
+    const isDying = currentHp <= 0 && !isDeadStatus && !nowStabilized;
 
-    // STATUS BERECHNEN
-    const isDead = deathFailures >= 3 || actor.statuses.has("dead");
-    const isDying = currentHp <= 0 && !isDead && !isStabilized;
+    // --- EFFEKTE TRIGGERN ---
+    
+    // 1. FLASH & SOUND: Wenn man gerade stabilisiert wurde
+    if (nowStabilized && !prev.stabilized) {
+        const flash = document.getElementById('deaths-door-flash-overlay');
+        flash.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 1500 });
+        stabilizeAudio.play().catch(() => {});
+    }
 
-    actorStates.set(actor.id, { hp: currentHp, success: deathSuccesses, failure: deathFailures, stabilized: isStabilized, dying: isDying });
+    // 2. BLOOD FLASH: Wenn man Schaden bei 0 HP frisst (egal ob sterbend oder stabil)
+    if (currentHp === 0 && (hpChanged || failChanged)) {
+        document.getElementById('deaths-door-blood-overlay').animate([{ opacity: 0.7 }, { opacity: 0 }], { duration: 600 });
+    }
 
-    // UI AKTUALISIEREN
-    $('#dd-succ-val').text(deathSuccesses);
-    $('#dd-fail-val').text(deathFailures);
+    // --- UI & KLASSEN ---
+    $('#dd-succ-val').text(successes);
+    $('#dd-fail-val').text(failures);
 
     if (isDying) {
         document.body.classList.add('deaths-door-active');
-        // Eskalationsstufen (fail-0, fail-1, fail-2)
         document.body.classList.remove('fail-0', 'fail-1', 'fail-2');
-        document.body.classList.add(`fail-${Math.min(2, deathFailures)}`);
-        
-        updateTurnUI();
+        document.body.classList.add(`fail-${Math.min(2, failures)}`);
         if (heartbeatAudio.paused) heartbeatAudio.play();
-        
-        // Optisches Feedback bei Treffer (auch wenn HP 0 bleibt)
-        if (hpUpdateSent || failuresIncreased) {
-            document.getElementById('deaths-door-blood-overlay').animate([{ opacity: 0.8 }, { opacity: 0 }], { duration: 600 });
-        }
+        updateTurnUI();
     } else {
         document.body.classList.remove('deaths-door-active', 'fail-0', 'fail-1', 'fail-2');
         heartbeatAudio.pause();
     }
 
-    if (isDead) document.body.classList.add('deaths-door-dead');
+    if (isDeadStatus) document.body.classList.add('deaths-door-dead');
     else document.body.classList.remove('deaths-door-dead');
+
+    // Zustand für das nächste Mal speichern
+    actorStates.set(actor.id, { hp: currentHp, succ: successes, fail: failures, stabilized: nowStabilized, dying: isDying });
 });
